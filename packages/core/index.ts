@@ -17,10 +17,16 @@ export { BootError, HandlerError } from "./src/errors";
 
 export type {
   Adapter,
+  FnRouteOptions,
+  FunctionHandler,
+  GroupBuilder,
+  GroupCallback,
   Handler,
+  HandlerInterface,
   HttpMethod,
   Identifier,
   Middleware,
+  MiddlewareInterface,
   Registration,
   RouteImplementation,
   RouteParams,

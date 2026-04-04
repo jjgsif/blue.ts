@@ -13,12 +13,26 @@
     },
     "packages/core": {
       "name": "@blue.ts/core",
+      "version": "0.0.0",
       "dependencies": {
         "memoirist": "^0.4.0",
       },
       "devDependencies": {
         "@types/bun": "latest",
         "@types/deno": "^2.5.0",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
+    "packages/middleware": {
+      "name": "@blue.ts/middleware",
+      "version": "0.0.0",
+      "dependencies": {
+        "@blue.ts/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
       },
       "peerDependencies": {
         "typescript": "^5",
@@ -31,6 +45,8 @@
     "@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@7.28.5", "", {}, "sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q=="],
 
     "@blue.ts/core": ["@blue.ts/core@workspace:packages/core"],
+
+    "@blue.ts/middleware": ["@blue.ts/middleware@workspace:packages/middleware"],
 
     "@commitlint/cli": ["@commitlint/cli@20.5.0", "", { "dependencies": { "@commitlint/format": "^20.5.0", "@commitlint/lint": "^20.5.0", "@commitlint/load": "^20.5.0", "@commitlint/read": "^20.5.0", "@commitlint/types": "^20.5.0", "tinyexec": "^1.0.0", "yargs": "^17.0.0" }, "bin": { "commitlint": "./cli.js" } }, "sha512-yNkyN/tuKTJS3wdVfsZ2tXDM4G4Gi7z+jW54Cki8N8tZqwKBltbIvUUrSbT4hz1bhW/h0CdR+5sCSpXD+wMKaQ=="],
 

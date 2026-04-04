@@ -345,6 +345,81 @@ describe('App', () => {
     });
   });
 
+  describe('functional handlers', () => {
+    it('app.get() registers a function handler', async () => {
+      const app = makeApp();
+      app.get('/health', () => new Response('ok'));
+      expect((await get(app, '/health')).status).toBe(200);
+      expect(await (await get(app, '/health')).text()).toBe('ok');
+    });
+
+    it('app.post() registers a function handler', async () => {
+      const app = makeApp();
+      app.post('/echo', async (ctx) => new Response(await ctx.text()));
+      const res = await post(app, '/echo', 'hello');
+      expect(await res.text()).toBe('hello');
+    });
+
+    it('function handler receives ctx.params', async () => {
+      const app = makeApp();
+      app.get('/users/:id', (ctx) => Context.json({ id: ctx.params['id'] }));
+      const res = await get(app, '/users/42');
+      expect((await res.json() as { id: string }).id).toBe('42');
+    });
+
+    it('function handler can be named for url()', () => {
+      const app = makeApp();
+      app.get('/users/:id', (ctx) => new Response(ctx.params['id'] ?? ''), { name: 'user.show' });
+      expect(app.url('user.show', { id: '99' })).toBe('/users/99');
+    });
+
+    it('function handler works inside group()', async () => {
+      const app = makeApp();
+      app.group('/api/v1', (r) => {
+        r.get('/ping', () => new Response('pong'));
+      });
+      expect(await (await get(app, '/api/v1/ping')).text()).toBe('pong');
+    });
+
+    it('global middleware runs before a function handler', async () => {
+      const app = makeApp();
+      const order: string[] = [];
+
+      class TraceMid {
+        handle(_ctx: Context, next: () => Response | Promise<Response>) {
+          order.push('middleware');
+          return next();
+        }
+      }
+
+      app.registerDependency(TraceMid as unknown as Middleware, {
+        lifetime: 'scoped',
+        factory: () => new TraceMid(),
+      });
+      app.use(TraceMid as unknown as Middleware);
+      app.get('/trace', () => { order.push('handler'); return new Response('ok'); });
+
+      await get(app, '/trace');
+      expect(order).toEqual(['middleware', 'handler']);
+    });
+
+    it('route(fn) and route(class) can coexist', async () => {
+      const app = makeApp();
+
+      class ClassHandler { handle(): Response { return new Response('class'); } }
+      app.registerDependency(ClassHandler as unknown as Handler, {
+        lifetime: 'transient',
+        factory: () => new ClassHandler(),
+      });
+
+      app.get('/fn',    () => new Response('fn'));
+      app.route('GET', '/class', { handler: ClassHandler as unknown as Handler });
+
+      expect(await (await get(app, '/fn')).text()).toBe('fn');
+      expect(await (await get(app, '/class')).text()).toBe('class');
+    });
+  });
+
   describe('url()', () => {
     it('generates a URL for a named route', () => {
       const app = makeApp();
@@ -352,6 +427,84 @@ describe('App', () => {
       app.registerDependency(StubHandler as unknown as Handler, { lifetime: 'transient', factory: () => new StubHandler() });
       app.route('GET', '/users/:id', { name: 'user.show', handler: StubHandler as unknown as Handler });
       expect(app.url('user.show', { id: '42' })).toBe('/users/42');
+    });
+  });
+
+  describe('auto-registration', () => {
+    it('class handler with no deps works without registerDependency', async () => {
+      const app = makeApp();
+
+      class PingHandler {
+        handle(): Response { return new Response('pong'); }
+      }
+
+      app.route('GET', '/ping', { handler: PingHandler as unknown as Handler });
+
+      const res = await get(app, '/ping');
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe('pong');
+    });
+
+    it('route-level middleware with no deps works without registerDependency', async () => {
+      const app = makeApp();
+      const order: string[] = [];
+
+      class TagMid {
+        handle(_ctx: Context, next: () => Response | Promise<Response>) {
+          order.push('mid');
+          return next();
+        }
+      }
+      class OkHandler {
+        handle(): Response { order.push('handler'); return new Response('ok'); }
+      }
+
+      app.route('GET', '/tagged', {
+        middlewares: [TagMid as unknown as Middleware],
+        handler: OkHandler as unknown as Handler,
+      });
+
+      await get(app, '/tagged');
+      expect(order).toEqual(['mid', 'handler']);
+    });
+
+    it('explicit registerDependency is not overridden by auto-registration', async () => {
+      const app = makeApp();
+      let factoryCalled = false;
+
+      class MyHandler {
+        handle(): Response { return new Response('explicit'); }
+      }
+
+      app.registerDependency(MyHandler as unknown as Handler, {
+        lifetime: 'transient',
+        factory: () => { factoryCalled = true; return new MyHandler(); },
+      });
+      app.route('GET', '/explicit', { handler: MyHandler as unknown as Handler });
+
+      const res = await get(app, '/explicit');
+      expect(res.status).toBe(200);
+      expect(factoryCalled).toBe(true);
+    });
+
+    it('auto-registered handler is transient (new instance per request)', async () => {
+      const app = makeApp();
+      const instances: object[] = [];
+
+      class TrackHandler {
+        handle(): Response {
+          instances.push(this);
+          return new Response('ok');
+        }
+      }
+
+      app.route('GET', '/track', { handler: TrackHandler as unknown as Handler });
+
+      await get(app, '/track');
+      await get(app, '/track');
+
+      expect(instances.length).toBe(2);
+      expect(instances[0]).not.toBe(instances[1]);
     });
   });
 

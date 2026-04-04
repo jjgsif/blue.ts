@@ -17,13 +17,13 @@ export type Registration<T> =
     factory: (c: Container) => T | Promise<T>,
 };
 
-interface HandlerInterface {
+export interface HandlerInterface {
     handle(ctx: Context): Response | Promise<Response>;
 }
 
 export type Handler = new(...args: any[]) => HandlerInterface;
 
-interface MiddlewareInterface {
+export interface MiddlewareInterface {
     handle(ctx: Context, next: () => Response | Promise<Response>): Response | Promise<Response>;
 }
 
@@ -31,12 +31,32 @@ export type Middleware = new(...args: any[]) => MiddlewareInterface;
 
 export type RouteParams<T extends string = string> = { [Key in keyof Serve.ExtractRouteParams<T>]: string };
 
-export type RouteImplementation = { name?: string; middlewares?: readonly Middleware[]; handler: Handler };
+export type FunctionHandler = (ctx: Context) => Response | Promise<Response>;
+
+export type RouteCommon = { name?: string; middlewares?: readonly Middleware[] };
+
+export type RouteImplementation =
+    | (RouteCommon & { handler: Handler })
+    | (RouteCommon & { fn: FunctionHandler });
+
+export type FnRouteOptions = { name?: string; middlewares?: readonly Middleware[] };
 
 export interface GroupBuilder {
-  route(method: HttpMethod, path: string, implementation: RouteImplementation): void;
-  group(prefix: string, callback: GroupCallback): void;
-  group(prefix: string, middlewares: Middleware[], callback: GroupCallback): void;
+    route(method: HttpMethod, path: string, implementation: RouteImplementation): void;
+
+    group(prefix: string, callback: GroupCallback): void;
+
+    group(prefix: string, middlewares: Middleware[], callback: GroupCallback): void;
+
+    get(path: string, fn: FunctionHandler, opts?: FnRouteOptions): void;
+
+    post(path: string, fn: FunctionHandler, opts?: FnRouteOptions): void;
+
+    put(path: string, fn: FunctionHandler, opts?: FnRouteOptions): void;
+
+    patch(path: string, fn: FunctionHandler, opts?: FnRouteOptions): void;
+
+    delete(path: string, fn: FunctionHandler, opts?: FnRouteOptions): void;
 }
 
 export type GroupCallback = (r: GroupBuilder) => void;
@@ -44,22 +64,22 @@ export type GroupCallback = (r: GroupBuilder) => void;
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
 export interface TlsOptions {
-  /** PEM-encoded private key */
-  key: string;
-  /** PEM-encoded certificate */
-  cert: string;
-  /** PEM-encoded CA certificate(s) — for mutual TLS / client cert validation */
-  ca?: string | string[];
-  /** Passphrase for an encrypted private key */
-  passphrase?: string;
+    /** PEM-encoded private key */
+    key: string;
+    /** PEM-encoded certificate */
+    cert: string;
+    /** PEM-encoded CA certificate(s) — for mutual TLS / client cert validation */
+    ca?: string | string[];
+    /** Passphrase for an encrypted private key */
+    passphrase?: string;
 }
 
 export interface ServeOptions {
-  port?: number;
-  hostname?: string;
-  tls?: TlsOptions;
+    port?: number;
+    hostname?: string;
+    tls?: TlsOptions;
 }
 
 export interface Adapter {
-  serve(handler: (req: Request) => Promise<Response>, options: ServeOptions): unknown;
+    serve(handler: (req: Request) => Promise<Response>, options: ServeOptions): unknown;
 }

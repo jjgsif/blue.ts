@@ -3,6 +3,8 @@ import {Context} from './context.ts';
 import type {Router} from './router.ts';
 import type {
     Adapter,
+    FnRouteOptions,
+    FunctionHandler,
     GroupBuilder,
     GroupCallback,
     HttpMethod,
@@ -65,19 +67,26 @@ export class App {
     }
 
     private makeGroupBuilder(prefix: string, groupMiddlewares: Middleware[]): GroupBuilder {
+        const route = (method: HttpMethod, path: string, impl: RouteImplementation) => {
+            this.router.route(method, `${prefix}${path}`, {
+                ...impl,
+                middlewares: [...groupMiddlewares, ...(impl.middlewares ?? [])],
+            });
+        };
+
         return {
-            route: (method, path, impl) => {
-                this.router.route(method, `${prefix}${path}`, {
-                    ...impl,
-                    middlewares: [...groupMiddlewares, ...(impl.middlewares ?? [])],
-                });
-            },
+            route,
             group: (nestedPrefix: string, middlewaresOrCallback: Middleware[] | GroupCallback, callback?: GroupCallback) => {
                 const [nestedMiddlewares, cb] = typeof middlewaresOrCallback === 'function'
                     ? [[] as Middleware[], middlewaresOrCallback]
                     : [middlewaresOrCallback, callback!];
                 cb(this.makeGroupBuilder(`${prefix}${nestedPrefix}`, [...groupMiddlewares, ...nestedMiddlewares]));
             },
+            get: (path, fn, opts) => route('GET', path, {fn, ...opts}),
+            post: (path, fn, opts) => route('POST', path, {fn, ...opts}),
+            put: (path, fn, opts) => route('PUT', path, {fn, ...opts}),
+            patch: (path, fn, opts) => route('PATCH', path, {fn, ...opts}),
+            delete: (path, fn, opts) => route('DELETE', path, {fn, ...opts}),
         };
     }
 
@@ -97,12 +106,19 @@ export class App {
 
         try {
             const composedMiddleware = await Promise.all([...this.middleware, ...(implementation.middlewares ?? [])].map(middleware => scoped.get(middleware)));
-            const handler = await scoped.get(implementation.handler);
+
+            let handlerFn: (ctx: Context) => Response | Promise<Response>;
+            if ('fn' in implementation) {
+                handlerFn = implementation.fn;
+            } else {
+                const handler = await scoped.get(implementation.handler);
+                handlerFn = handler.handle.bind(handler);
+            }
 
             const pipeline = composedMiddleware.reduceRight(
                 (next, middleware) => {
-                 return (ctx: Context) => middleware.handle(ctx, () => next(ctx));
-                }, handler.handle.bind(handler)
+                    return (ctx: Context) => middleware.handle(ctx, () => next(ctx));
+                }, handlerFn
             );
             return await pipeline(context);
         } catch (e) {
@@ -111,18 +127,52 @@ export class App {
                 return this.errorHandler(context, handlerError);
             } else {
                 console.log(`[ERROR] Error: ${(e as Error).message}`);
-                return new Response(JSON.stringify({ "error": "Internal Server Error" }), {status: 500});
+                return new Response(JSON.stringify({"error": "Internal Server Error"}), {status: 500});
             }
         }
     };
 
-    url<T extends string = string>(name: string, params?: RouteParams<T>): string
-    {
+    get(path: string, fn: FunctionHandler, opts?: FnRouteOptions): this {
+        return this.route('GET', path, {fn, ...opts}), this;
+    }
+
+    post(path: string, fn: FunctionHandler, opts?: FnRouteOptions): this {
+        return this.route('POST', path, {fn, ...opts}), this;
+    }
+
+    put(path: string, fn: FunctionHandler, opts?: FnRouteOptions): this {
+        return this.route('PUT', path, {fn, ...opts}), this;
+    }
+
+    patch(path: string, fn: FunctionHandler, opts?: FnRouteOptions): this {
+        return this.route('PATCH', path, {fn, ...opts}), this;
+    }
+
+    delete(path: string, fn: FunctionHandler, opts?: FnRouteOptions): this {
+        return this.route('DELETE', path, {fn, ...opts}), this;
+    }
+
+    url<T extends string = string>(name: string, params?: RouteParams<T>): string {
         return this.router.generate(name, params);
     }
 
-    route(method: HttpMethod, path: string, implementation: RouteImplementation): void
-    {
+    route(method: HttpMethod, path: string, implementation: RouteImplementation): void {
+        if ("handler" in implementation && !this.container.hasRegistration(implementation.handler)) {
+            this.container.register(implementation.handler, {
+                lifetime: 'transient',
+                factory: () => new implementation.handler()
+            });
+
+            for (const middleware of implementation.middlewares ?? []) {
+                if (!this.container.hasRegistration(middleware)) {
+                    this.container.register(middleware, {
+                        lifetime: 'transient',
+                        factory: () => new middleware()
+                    });
+                }
+            }
+        }
+
         return this.router.route(method, path, implementation);
     }
 
@@ -130,8 +180,7 @@ export class App {
         this.container.register(identifier, registration);
     }
 
-    onError(errorHandler: (ctx: Context, error: HandlerError) => Promise<Response> | Response): App
-    {
+    onError(errorHandler: (ctx: Context, error: HandlerError) => Promise<Response> | Response): App {
         this.errorHandler = errorHandler;
         return this;
     }
