@@ -46,7 +46,8 @@ describe('Router', () => {
       const impl = makeImpl();
       r.route('GET', '/hello', impl);
       const result = r.match('GET', '/hello');
-      expect(result).not.toBeNull();
+      expect(result).not.toBeNull()
+      // @ts-ignore
       expect(result!.handler).toBe(stub);
     });
 
@@ -56,7 +57,9 @@ describe('Router', () => {
       class PostHandler { handle() { return new Response('post'); } }
       r.route('GET',  '/x', { handler: GetHandler  as unknown as Handler });
       r.route('POST', '/x', { handler: PostHandler as unknown as Handler });
+      // @ts-ignore
       expect(r.match('GET',  '/x')!.handler).toBe(GetHandler  as unknown as Handler);
+      // @ts-ignore
       expect(r.match('POST', '/x')!.handler).toBe(PostHandler as unknown as Handler);
     });
   });
