@@ -25,6 +25,19 @@
         "typescript": "^5",
       },
     },
+    "packages/logging": {
+      "name": "@blue.ts/logging",
+      "version": "0.0.0",
+      "dependencies": {
+        "@blue.ts/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
     "packages/middleware": {
       "name": "@blue.ts/middleware",
       "version": "0.0.0",
@@ -45,6 +58,8 @@
     "@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@7.28.5", "", {}, "sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q=="],
 
     "@blue.ts/core": ["@blue.ts/core@workspace:packages/core"],
+
+    "@blue.ts/logging": ["@blue.ts/logging@workspace:packages/logging"],
 
     "@blue.ts/middleware": ["@blue.ts/middleware@workspace:packages/middleware"],
 
