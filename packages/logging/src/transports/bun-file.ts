@@ -1,4 +1,3 @@
-import {openSync} from 'node:fs';
 import type {Transport, LogEntry} from '../types.ts';
 
 export interface BunFileTransportOptions {
@@ -10,55 +9,83 @@ export interface BunFileTransportOptions {
      * Default: `true`.
      */
     append?: boolean;
-    /**
-     * FileSink write buffer size in bytes.
-     * Larger values reduce syscall frequency at the cost of more memory.
-     * Default: Bun's internal default (~16 KB).
-     */
-    highWaterMark?: number;
 }
 
 /**
- * Bun-native transport that writes newline-delimited JSON to a file using
- * Bun's `FileSink` API.
+ * Transport that writes newline-delimited JSON to a file via a dedicated
+ * Bun Worker thread — keeping JSON serialisation and file I/O off the main
+ * thread entirely.
  *
- * Prefer this over `FileTransport` when running on Bun — `FileSink` uses
- * Bun's internal write buffering and is slightly faster than Node.js
- * `WriteStream` in the same process.
+ * Uses `node:fs` `WriteStream` inside the worker (not `Bun.file`) to avoid
+ * known issues with `Bun.file` in Worker contexts.
  *
- * For off-main-thread I/O (zero serialisation cost on the hot path), use
- * `BunWorkerTransport` instead.
+ * The worker is lazily started on the first `write()` call.
  *
  * @example
  * new LoggingModule({
- *   transports: [
- *     new BunFileTransport({ path: 'app.log' }),
- *   ],
+ *   transports: [new BunFileTransport({ path: 'app.log' })],
  * })
  */
 export class BunFileTransport implements Transport {
-    private readonly sink: ReturnType<ReturnType<typeof Bun.file>['writer']>;
+    private _worker: Worker | null = null;
+    private readonly options: BunFileTransportOptions;
 
     constructor(options: BunFileTransportOptions) {
-        // Open via fd so we can control the flags (append vs truncate).
-        // Bun.file(fd) wraps an already-open file descriptor.
-        const fd = openSync(options.path, options.append !== false ? 'a' : 'w');
-        this.sink = Bun.file(fd).writer({
-            highWaterMark: options.highWaterMark,
-        });
+        this.options = options;
+    }
+
+    private get worker(): Worker {
+        if (!this._worker) {
+            this._worker = new Worker(
+                new URL('./file-worker-script.ts', import.meta.url),
+                {type: 'module'},
+            );
+            // __init must arrive before any log entries (FIFO message order).
+            this._worker.postMessage({
+                __init: true,
+                path: this.options.path,
+                append: this.options.append !== false,
+            });
+        }
+        return this._worker;
     }
 
     write(entry: LogEntry): void {
-        this.sink.write(JSON.stringify(entry) + '\n');
+        this.worker.postMessage(entry);
     }
 
-    /** Flush buffered data to the OS. */
-    async flush(): Promise<void> {
-        await this.sink.flush();
+    /** Wait for all buffered entries to be written to the file. */
+    flush(): Promise<void> {
+        if (!this._worker) return Promise.resolve();
+
+        return new Promise<void>((resolve) => {
+            const handler = (e: MessageEvent<{__flushed: true}>) => {
+                if (e.data.__flushed) {
+                    this._worker!.removeEventListener('message', handler);
+                    resolve();
+                }
+            };
+            this._worker!.addEventListener('message', handler);
+            this._worker!.postMessage({__flush: true});
+        });
     }
 
-    /** Flush buffered data and close the file handle. */
+    /** Drain, close the file handle, then terminate the worker thread. */
     async close(): Promise<void> {
-        await this.sink.end();
+        if (!this._worker) return;
+
+        await new Promise<void>((resolve) => {
+            const handler = (e: MessageEvent<{__closed: true}>) => {
+                if (e.data.__closed) {
+                    this._worker!.removeEventListener('message', handler);
+                    resolve();
+                }
+            };
+            this._worker!.addEventListener('message', handler);
+            this._worker!.postMessage({__close: true});
+        });
+
+        this._worker.terminate();
+        this._worker = null;
     }
 }
