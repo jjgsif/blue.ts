@@ -1,0 +1,12 @@
+export { AuthProvider } from './src/provider.ts';
+export { Adapter } from './src/adapters/Adapter.ts';
+export { JWTAdapter } from './src/adapters/JWTAdapter.ts';
+export { SessionAdapter } from './src/adapters/SessionAdapter.ts';
+export { APIKeyAdapter } from './src/adapters/APIKeyAdapter.ts';
+export { BasicAuthAdapter } from './src/adapters/BasicAuthAdapter.ts';
+export { MemorySessionStore } from './src/stores/MemorySessionStore.ts';
+export { createAuthMiddleware } from './src/middleware/AuthMiddleware.ts';
+export { requireRole } from './src/middleware/RequireRole.ts';
+export { getAuthUser, setAuthUser } from './src/auth-store.ts';
+export { AuthError } from './src/errors.ts';
+export type { AuthOptions, AuthUser, JWTOptions, SessionOptions, SessionStore } from './src/types.ts';

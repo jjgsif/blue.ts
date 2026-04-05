@@ -1,157 +1,211 @@
 # blue.ts
 
-A mildly opinionated HTTP server framework for TypeScript. Built on [Bun](https://bun.com), with adapters for Node.js and Deno.
-
-## Install
+A mildly opinionated HTTP framework for TypeScript. Class-based handlers and IoC dependency injection — without decorators, `experimentalDecorators`, or `reflect-metadata`. Built on [Bun](https://bun.sh), with adapters for Node.js and Deno.
 
 ```bash
 bun install
 ```
 
+---
+
 ## Quick Start
 
+### Function handlers
+
 ```typescript
-import { App, Container, Context, Router, BunAdapter } from '@blue.ts/core';
+import { App, Container, Router, BunAdapter, Context } from '@blue.ts/core';
 
-const container = new Container(new Map());
-const router    = new Router();
+const app = new App(new Container(new Map()), new Router());
 
-class GetUserHandler {
-  handle(ctx: Context): Response {
-    return Context.json({ id: ctx.params['id'] });
-  }
-}
+app.get('/health', () => new Response('ok'));
 
-container.register(GetUserHandler, {
-  lifetime: 'transient',
-  factory: () => new GetUserHandler(),
+app.get('/users/:id', (ctx) =>
+    Context.json({ id: ctx.params['id'] })
+);
+
+app.post('/users', async (ctx) => {
+    const body = await ctx.json<{ name: string }>();
+    return Context.json({ created: body.name }, { status: 201 });
 });
 
-router.route('GET', '/users/:id', { handler: GetUserHandler });
-
-const app = new App(container, router);
-await app.boot();
 app.listen(new BunAdapter(), { port: 3000 });
+```
+
+### Class handlers
+
+```typescript
+class GetUserHandler {
+    constructor(private readonly db: Database) {}
+
+    async handle(ctx: Context): Promise<Response> {
+        const user = await this.db.find(ctx.params['id']!);
+        return user
+            ? Context.json(user)
+            : Context.json({ error: 'Not Found' }, { status: 404 });
+    }
+}
+
+// Register the handler's dependencies, then route to it.
+// Zero-dependency handlers are auto-registered — no extra step needed.
+app.registerDependency(GetUserHandler, {
+    lifetime: 'transient',
+    factory: async (c) => new GetUserHandler(await c.get(Database)),
+});
+app.route('GET', '/users/:id', { handler: GetUserHandler });
 ```
 
 ---
 
-## Core Concepts
+## Packages
 
-### Handlers
+| Package | Description |
+|---|---|
+| `@blue.ts/core` | App, Container, Router, Context, adapters |
+| `@blue.ts/middleware` | CORS, validation, static files, rate limiting, request logging |
+| `@blue.ts/logging` | Structured logger, pino-compatible output, pluggable transports |
 
-Handlers are classes with a `handle(ctx): Response | Promise<Response>` method. They are resolved through the IoC container on every request, so their constructor dependencies are injected automatically.
+---
+
+## Core — `@blue.ts/core`
+
+### Routing
+
+**Function handlers** — inline functions, no container registration needed:
 
 ```typescript
-class CreateUserHandler {
-  constructor(private db: Database) {}
+app.get('/ping', () => new Response('pong'));
+app.post('/echo', async (ctx) => new Response(await ctx.text()));
+app.put('/users/:id', (ctx) => Context.json({ id: ctx.params['id'] }));
+app.patch('/users/:id', async (ctx) => { /* ... */ });
+app.delete('/users/:id', (ctx) => Context.empty());
+```
 
-  async handle(ctx: Context): Promise<Response> {
-    const body = await ctx.json<{ name: string }>();
-    const user = await this.db.create(body);
-    return Context.json(user, { status: 201 });
-  }
-}
+**Class handlers** — resolved through the IoC container; dependencies injected via constructor:
+
+```typescript
+app.route('GET', '/users/:id', { handler: GetUserHandler });
+app.route('POST', '/users',    { handler: CreateUserHandler });
+```
+
+Zero-dependency class handlers are auto-registered as `transient`. Handlers that need constructor injection require an explicit `registerDependency` call beforehand.
+
+**Named routes** — generate URLs from a name without hardcoding paths:
+
+```typescript
+app.get('/users/:id', handler, { name: 'user.show' });
+app.url('user.show', { id: '42' }); // → '/users/42'
+```
+
+### Route Groups
+
+Group related routes under a shared prefix and middleware stack:
+
+```typescript
+app.group('/api/v1', (r) => {
+    r.get('/users',     listUsers);
+    r.post('/users',    createUser);
+    r.get('/users/:id', getUser);
+});
+
+// With group-level middleware
+app.group('/admin', [AuthMiddleware], (r) => {
+    r.get('/stats', getStats);
+
+    // Nested groups compose both prefix and middleware
+    r.group('/users', [AuditMiddleware], (admin) => {
+        admin.delete('/:id', deleteUser);
+    });
+});
 ```
 
 ### Middleware
 
-Middleware is class-based with a `handle(ctx, next)` method. Call `next()` to pass control to the next middleware or the handler. Middleware, like handlers, are also resolved through the IoC Container so dependencies are injected automatically.
+Middleware is class-based with a `handle(ctx, next)` signature:
 
 ```typescript
 class AuthMiddleware {
-  handle(ctx: Context, next: () => Response | Promise<Response>) {
-    const token = ctx.headers.get('Authorization');
-    if (!token) return Context.json({ error: 'Unauthorized' }, { status: 401 });
-    return next();
-  }
+    handle(ctx: Context, next: () => Response | Promise<Response>) {
+        const token = ctx.headers.get('Authorization');
+        if (!token) return Context.json({ error: 'Unauthorized' }, { status: 401 });
+        return next();
+    }
 }
 ```
 
-Register middleware globally on the app, or per-route:
+Register globally (all routes) or per-route:
 
 ```typescript
-// Global — runs on every request
-app.use(LogMiddleware);
+// Global — every request
+app.use(LoggingMiddleware, AuthMiddleware);
 
-// Per-route — runs only for this route, after global middleware
-router.route('DELETE', '/users/:id', {
-  middlewares: [AuthMiddleware],
-  handler: DeleteUserHandler,
+// Route-level — this route only, runs after global middleware
+app.route('DELETE', '/users/:id', {
+    middlewares: [OwnerOnlyMiddleware],
+    handler: DeleteUserHandler,
 });
 ```
 
-Middleware execution order: **global** (in registration order) → **route-level** → **handler**.
+Execution order: **global** (FIFO) → **group** → **route-level** → **handler**.
 
 ### Context
 
-`Context` is created per-request. It exposes the request, route params, and parsed accessors. The body is read once from the stream and cached — middleware and handler can both read it.
+Per-request context with body caching — the body is read once from the stream and cached, so middleware and handler can both read it:
 
 ```typescript
 ctx.req              // raw Request
 ctx.params           // route params — Record<string, string>
 ctx.headers          // request Headers
-ctx.searchParams     // URLSearchParams from the query string
-ctx.cookies          // ReadonlyMap<string, string> parsed from Cookie header
+ctx.searchParams     // URLSearchParams
+ctx.cookies          // ReadonlyMap<string, string> — parsed Cookie header
 
 await ctx.text()     // body as string (cached)
 await ctx.json<T>()  // body parsed as JSON (cached)
 await ctx.formData() // body as FormData (cached)
 ```
 
-**Static response factories:**
+**Response factories:**
 
 ```typescript
-Context.json(data, init?)              // 200 application/json
-Context.text(body, init?)              // 200 text/plain
-Context.redirect(url, status?)         // 302 by default
-Context.empty(status?)                 // 204 by default
+Context.json(data, init?)     // 200 application/json
+Context.text(body, init?)     // 200 text/plain
+Context.redirect(url, status) // 302 by default
+Context.empty(status?)        // 204 by default
 ```
 
 ---
 
 ## IoC Container
 
-The container manages dependency lifetimes and resolves constructor dependencies.
-
 ```typescript
 const container = new Container(new Map());
 
-// Register a singleton — one instance for the lifetime of the app
+// Singleton — one instance for the lifetime of the process
 container.register(DatabaseService, {
-  lifetime: 'singleton',
-  factory: () => new DatabaseService(process.env.DATABASE_URL),
+    lifetime: 'singleton',
+    factory: () => new DatabaseService(process.env.DATABASE_URL),
 });
 
-// Register a scoped service — one instance per request
+// Scoped — one instance per request (fresh per request scope)
 container.register(RequestLogger, {
-  lifetime: 'scoped',
-  factory: () => new RequestLogger(),
+    lifetime: 'scoped',
+    factory: async (c) => new RequestLogger(await c.get(Logger)),
 });
 
-// Register a transient service — new instance every resolution
+// Transient — new instance on every resolution
 container.register(EmailService, {
-  lifetime: 'transient',
-  factory: (c) => c.get(SmtpClient).then(smtp => new EmailService(smtp)),
+    lifetime: 'transient',
+    factory: async (c) => new EmailService(await c.get(SmtpClient)),
 });
 ```
 
-**Lifetimes:**
-
-| Lifetime | Instance created | Cached |
-|---|---|---|
-| `singleton` | Once | On the root container |
-| `scoped` | Once per request | On the request scope |
-| `transient` | Every `get()` call | Never |
-
-**Identifiers** can be a class constructor, a string, or a symbol:
+Identifiers can be a class constructor, string, or symbol:
 
 ```typescript
-container.register('config', { lifetime: 'singleton', factory: () => loadConfig() });
-container.register(Symbol.for('db'), { lifetime: 'singleton', factory: () => connectDb() });
+container.register('config',          { lifetime: 'singleton', factory: loadConfig });
+container.register(Symbol.for('db'),  { lifetime: 'singleton', factory: connectDb });
 ```
 
-**Circular dependencies** are detected at resolution time with a descriptive error:
+Circular dependencies are detected at resolution time:
 
 ```
 Error: Circular dependency detected: ServiceA → ServiceB → ServiceA
@@ -161,106 +215,253 @@ Error: Circular dependency detected: ServiceA → ServiceB → ServiceA
 
 ## Module System
 
-`ConfigProvider` is the extension point for bundling routes and services together. Any `@blue.ts/*` package ships as one or more `ConfigProvider` subclasses.
+`ConfigProvider` bundles routes, services, and async lifecycle together. Every `@blue.ts/*` package ships as a `ConfigProvider` subclass.
 
 ```typescript
-class AuthModule extends ConfigProvider {
-  constructor(private config: { secret: string }) { super(); }
+class DatabaseModule extends ConfigProvider {
+    constructor(private readonly url: string) { super(); }
 
-  override registerDependency(app: App): void {
-    app.registerDependency(TokenService, {
-      lifetime: 'singleton',
-      factory: () => new TokenService(this.config.secret),
-    });
-  }
+    override registerDependency(app: App): void {
+        app.registerDependency(Database, {
+            lifetime: 'singleton',
+            factory: () => new Database(this.url),
+        });
+    }
 
-  override registerRoutes(app: App): void {
-    app.route('POST', '/auth/login', { handler: LoginHandler });
-  }
+    override registerRoutes(app: App): void {
+        // registerDependency() has run across ALL providers before this is called
+        app.route('GET', '/health/db', { fn: () => Context.json({ ok: true }) });
+    }
 
-  override async boot(): Promise<void> {
-    // async setup — called before the server starts
-  }
+    override async boot(): Promise<void> {
+        await (await app.container.get(Database)).connect();
+    }
 }
 
-app.registerProvider(new AuthModule({ secret: process.env.JWT_SECRET }));
+app.registerProvider(new DatabaseModule(process.env.DATABASE_URL));
 await app.boot();
+app.listen(new BunAdapter(), { port: 3000 });
 ```
-
-`registerDependency` is always called before `registerRoutes` across all providers, so routes can rely on services registered by other modules.
 
 ### Boot lifecycle
 
-`app.boot()` calls each provider's `boot()` in registration order, waiting for each to complete before starting the next. Throw a `BootError` to control whether a failure is fatal:
+`app.boot()` calls each provider's `boot()` in registration order. Use `BootError` to distinguish fatal from recoverable failures:
 
 ```typescript
 import { BootError } from '@blue.ts/core';
 
 override async boot(): Promise<void> {
-  try {
-    await this.db.connect();
-  } catch (e) {
-    // isFatal: false — server continues without this module
-    throw new BootError({ message: 'DB unavailable', options: { isFatal: false } });
-  }
+    try {
+        await this.cache.connect();
+    } catch (e) {
+        // isFatal: false — server starts, this module is skipped
+        throw new BootError({ message: 'Cache unavailable', options: { isFatal: false } });
+    }
 }
+```
+
+---
+
+## Middleware — `@blue.ts/middleware`
+
+### CORS
+
+```typescript
+import { CorsMiddleware, createCorsMiddleware } from '@blue.ts/middleware';
+
+// Global — default open policy
+app.use(CorsMiddleware);
+
+// Per-route factory — returns a unique class compatible with registerDependency
+const StrictCors = createCorsMiddleware({
+    origin: 'https://my-app.com',
+    methods: ['GET', 'POST'],
+    credentials: true,
+});
+app.route('POST', '/api/data', { middlewares: [StrictCors], handler: DataHandler });
+```
+
+### Validation
+
+Schema-agnostic — works with Zod, Valibot, or any object with a `safeParse` method:
+
+```typescript
+import { createValidationMiddleware } from '@blue.ts/middleware';
+import { z } from 'zod';
+
+const schema = z.object({ name: z.string(), age: z.number() });
+const ValidateBody = createValidationMiddleware(schema);
+
+app.route('POST', '/users', {
+    middlewares: [ValidateBody],
+    handler: CreateUserHandler,
+});
+// Invalid body → 422 { error: 'Validation failed', issues: [...] }
+```
+
+### Static Files
+
+```typescript
+import { StaticMiddleware } from '@blue.ts/middleware';
+
+app.use(StaticMiddleware);
+app.registerDependency(StaticMiddleware, {
+    lifetime: 'singleton',
+    factory: () => new StaticMiddleware({ root: './public', prefix: '/static' }),
+});
+```
+
+### Rate Limiting
+
+```typescript
+import { RateLimitMiddleware } from '@blue.ts/middleware';
+
+app.use(RateLimitMiddleware);
+app.registerDependency(RateLimitMiddleware, {
+    lifetime: 'singleton',
+    factory: () => new RateLimitMiddleware({
+        windowMs: 60_000,
+        max: 100,
+        keyFn: (ctx) => ctx.headers.get('X-Forwarded-For') ?? 'unknown',
+    }),
+});
+// Over limit → 429 { error: 'Too Many Requests' } + Retry-After header
+```
+
+Bring your own store by implementing `RateLimitStore`:
+
+```typescript
+import type { RateLimitStore } from '@blue.ts/middleware';
+
+const redisStore: RateLimitStore = {
+    async increment(key, windowMs) {
+        // ... Redis INCR + EXPIRY logic
+        return { count, resetMs };
+    },
+};
+```
+
+### Request Logging
+
+```typescript
+import { LoggingMiddleware } from '@blue.ts/middleware';
+
+app.use(LoggingMiddleware);
+// → {"timestamp":"...","method":"GET","path":"/users","status":200,"durationMs":4}
+```
+
+---
+
+## Logging — `@blue.ts/logging`
+
+Structured logger with pino-compatible JSON output and pluggable transports.
+
+```typescript
+import { LoggingModule, ConsoleTransport, LoggerToken, RequestLoggerToken } from '@blue.ts/logging';
+import type { ILogger } from '@blue.ts/logging';
+
+app.registerProvider(new LoggingModule({
+    transports: [new ConsoleTransport()],
+    level: 'info',
+    fields: { service: 'api', version: '1.0.0' },
+}));
+```
+
+Log entry format (pino-compatible):
+
+```json
+{"level":30,"time":1712345678000,"pid":1234,"hostname":"host","service":"api","msg":"Request received","reqId":"abc123"}
+```
+
+Level values: `trace=10 debug=20 info=30 warn=40 error=50 fatal=60`
+
+### Inject the logger
+
+```typescript
+// Root logger singleton
+app.registerDependency(MyService, {
+    lifetime: 'singleton',
+    factory: async (c) => new MyService(await c.get<ILogger>(LoggerToken)),
+});
+
+// Per-request child logger (unique reqId per request)
+app.registerDependency(MyHandler, {
+    lifetime: 'scoped',
+    factory: async (c) => new MyHandler(await c.get<ILogger>(RequestLoggerToken)),
+});
+```
+
+### Child loggers
+
+```typescript
+const reqLog = logger.child({ reqId: 'abc', method: 'GET', path: '/users' });
+reqLog.info('Processing');
+// → {"level":30,"time":...,"reqId":"abc","method":"GET","path":"/users","msg":"Processing"}
+```
+
+### Transports
+
+| Transport | Description |
+|---|---|
+| `ConsoleTransport` | Synchronous NDJSON to stdout |
+| `FileTransport` | NDJSON to a file — cross-runtime, node:fs `WriteStream` |
+| `BunFileTransport` | NDJSON to a file via a Worker thread — off-main-thread I/O on Bun |
+| `BunWorkerTransport` | NDJSON to stdout via a Worker thread — off-main-thread I/O on Bun |
+
+```typescript
+import { FileTransport, BunWorkerTransport } from '@blue.ts/logging';
+
+new LoggingModule({
+    transports: [
+        new FileTransport({ path: 'app.log' }),          // append by default
+        new FileTransport({ path: 'app.log', append: false }), // truncate on start
+        new BunWorkerTransport(),                         // stdout, off-thread
+    ],
+})
+```
+
+Call `transport.close()` at graceful shutdown to flush buffered entries:
+
+```typescript
+process.on('SIGTERM', async () => {
+    await workerTransport.close();
+    process.exit(0);
+});
 ```
 
 ---
 
 ## Error Handling
 
-Register a global error handler with `app.onError`. It receives the `Context` and a `HandlerError` wrapping the original error.
-
 ```typescript
 app.onError((ctx, err) => {
-  console.error(err.cause); // the original error
-  return Context.json({ error: err.message }, { status: 500 });
+    console.error(err.cause); // original error
+    return Context.json({ error: 'Internal Server Error' }, { status: 500 });
 });
 ```
 
-If no handler is registered, unhandled errors log to stderr and return a generic `500 Internal Server Error`.
+`HandlerError` properties: `message` (includes HTTP method + URL), `cause` (original error), `stack` (original stack).
 
 ---
 
 ## Runtime Adapters
 
-blue.ts is not tied to a specific runtime. Pass an adapter to `app.listen()`.
-
-### Bun
-
 ```typescript
-import { BunAdapter } from '@blue.ts/core';
-app.listen(new BunAdapter(), { port: 3000 });
-```
-
-### Node.js
-
-```typescript
+import { BunAdapter }  from '@blue.ts/core';
 import { NodeAdapter } from '@blue.ts/core';
+import { Deno }        from '@blue.ts/core';
+
+app.listen(new BunAdapter(),  { port: 3000 });
 app.listen(new NodeAdapter(), { port: 3000 });
-```
+app.listen(new Deno(),        { port: 3000 });
 
-### Deno
-
-```typescript
-import { Deno as DenoAdapter } from '@blue.ts/core';
-app.listen(new DenoAdapter(), { port: 3000 });
-```
-
-### TLS
-
-All adapters accept a `tls` option with PEM-encoded key and certificate:
-
-```typescript
-import { readFileSync } from 'node:fs';
-
+// TLS — all adapters
 app.listen(new BunAdapter(), {
-  port: 443,
-  tls: {
-    key:  readFileSync('server.key',  'utf8'),
-    cert: readFileSync('server.cert', 'utf8'),
-  },
+    port: 443,
+    tls: {
+        key:  readFileSync('server.key',  'utf8'),
+        cert: readFileSync('server.cert', 'utf8'),
+    },
 });
 ```
 
@@ -268,116 +469,78 @@ app.listen(new BunAdapter(), {
 
 ## Testing
 
-`app.fetch(req)` can be called directly without binding a port — ideal for unit tests.
+`app.fetch()` works without binding a port:
 
 ```typescript
-import { expect, test } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 
-test('GET /users/:id returns the user', async () => {
-  const res = await app.fetch(new Request('http://localhost/users/42'));
-  expect(res.status).toBe(200);
-  expect(await res.json()).toEqual({ id: '42' });
+describe('GET /users/:id', () => {
+    it('returns the user', async () => {
+        const res = await app.fetch(new Request('http://localhost/users/42'));
+        expect(res.status).toBe(200);
+        expect(await res.json()).toMatchObject({ id: '42' });
+    });
+
+    it('returns 404 for unknown user', async () => {
+        const res = await app.fetch(new Request('http://localhost/users/999'));
+        expect(res.status).toBe(404);
+    });
 });
 ```
 
-Run the test suite:
+Swap a dependency for a test double without a mocking library:
 
-```bash
-bun test
+```typescript
+app.registerDependency(Database, {
+    lifetime: 'singleton',
+    factory: () => new FakeDatabase(fixtures),
+});
 ```
 
----
+Run the suite:
 
-## Comparison with Similar Frameworks
-
-> This section tracks where blue.ts stands relative to the ecosystem. Items marked ❌ with "planned" are on the [roadmap](./Roadmaps).
-
-### Feature Matrix
-
-| | blue.ts | Hono | Elysia | Express | NestJS |
-|---|---|---|---|---|---|
-| Runtimes | Bun / Node / Deno | All | Bun-first | Node | Node |
-| IoC container | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Decorators required | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Per-request scoping | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Type-safe params | ❌ planned | ✅ | ✅ | ❌ | ❌ |
-| Built-in validation | ❌ planned | ❌ | ✅ | ❌ | ✅ |
-| Body caching | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Module system | ✅ | ❌ | ✅ | ❌ | ✅ |
-| Function handlers | ❌ | ✅ | ✅ | ✅ | ❌ |
-| Ecosystem | ❌ early | ✅ | growing | ✅ | ✅ |
-| Streaming / SSE | ❌ planned | ✅ | ✅ | ❌ | ❌ |
-
-### Advantages
-
-**Constructor injection without decorators**
-NestJS is the only other framework with true IoC DI, but it requires `@Injectable()`, `@Controller()`, `experimentalDecorators`, and `emitDecoratorMetadata`. blue.ts gets the same result — testable, explicit dependency graphs, per-request scoping — with plain classes and a registry. No reflection, no metadata, no tsconfig flags.
-
-**Per-request scoped containers**
-`lifetime: 'scoped'` gives a fresh instance per request automatically. This is useful for per-request DB transactions, request-bound loggers, or user-specific state. Express, Hono, and Elysia have no equivalent built in.
-
-**Body caching**
-Reading `ctx.text()` in middleware then `ctx.json()` in the handler just works. Every other framework consumes the body stream once. This matters when auth middleware needs to inspect the raw body and the handler still needs to parse it as JSON.
-
-**Adapter-isolated runtime**
-The adapter pattern makes the runtime choice explicit at startup. Swapping `BunAdapter` for `NodeAdapter` is one line — application code including TLS config is entirely untouched.
-
-**Module system with boot lifecycle**
-`ConfigProvider` bundles routes + services + async lifecycle together, with `BootError` giving non-fatal failure semantics. NestJS modules are close but more complex. Hono, Elysia, and Express have no equivalent.
-
-**Testability via `app.fetch()`**
-`app.fetch(new Request(...))` works without binding a port. Hono supports this too. Express requires `supertest` wrapping an `http.Server`. Phase 4 adds `@blue.ts/testing` — a fluent request builder with typed response assertions and per-test service mocking built on top of this.
-
-### Pitfalls
-
-**Double registration friction** — the biggest one
-Every handler requires two steps: `container.register(Handler, { factory: ... })` and `router.route(...)`. In Hono or Express a route is one line. `ConfigProvider` mitigates this for packaged modules, but standalone routes still pay full ceremony cost.
-
-**No type-safe route params** *(Phase 2)*
-`ctx.params['id']` is a plain string index. Hono and Elysia both infer `{ id: string }` from the route pattern at the type level. Until this ships, every param access is untyped.
-
-**Class-only handlers — no escape hatch for simple cases**
-A health check endpoint still requires a class and a container registration. There is no way to inline a one-line handler without the full ceremony.
-
-**Async container resolution on every request**
-`await Promise.all([...middleware.map(m => scoped.get(m))])` runs on every request. Hono and Elysia reference handler functions directly with no allocation overhead on the routing layer.
-
-**No built-in validation** *(Phase 3)*
-Elysia ships TypeBox schema validation as a first-class feature with end-to-end type inference. Fastify has JSON Schema. blue.ts has nothing until Phase 3.
-
-**Zero ecosystem**
-Express has thousands of middleware packages. Hono has official `@hono/*` packages. blue.ts has none yet.
-
-**No route grouping** *(Phase 2)*
-No `app.group('/api/v1', ...)`. Every route is registered with its full path.
+```bash
+bun test           # all packages
+bun test --watch   # watch mode
+```
 
 ---
 
 ## Project Structure
 
 ```
-src/
-  app.ts           — App class (request pipeline, middleware, providers)
-  container.ts     — IoC container (singleton / scoped / transient lifetimes)
-  context.ts       — Per-request context (body, cookies, searchParams, response factories)
-  router.ts        — Router (memoirist radix tree)
-  providers.ts     — ConfigProvider base class (module system)
-  types.ts         — Shared types
-  adapters/
-    bun.ts         — Bun adapter
-    deno.ts        — Deno adapter
-    node.ts        — Node.js adapter
-  errors/
-    BootError.ts   — Fatal / non-fatal boot failure
-    HandlerError.ts — Wraps handler/middleware errors with original cause
-tests/
-  container.test.ts
-  context.test.ts
-  router.test.ts
-  app.test.ts
-  providers.test.ts
+packages/
+  core/
+    src/
+      app.ts            — App class (pipeline, middleware, providers)
+      container.ts      — IoC container (singleton / scoped / transient)
+      context.ts        — Per-request context (body caching, cookies, response factories)
+      router.ts         — Radix tree router with named route support
+      providers.ts      — ConfigProvider base class
+      types.ts          — Shared types and interfaces
+      adapters/         — Bun, Node.js, Deno adapters
+      errors/           — BootError, HandlerError
+    tests/              — container, context, router, app, providers
+  middleware/
+    src/
+      cors.ts           — CorsMiddleware + createCorsMiddleware()
+      validate.ts       — createValidationMiddleware(schema)
+      static.ts         — StaticMiddleware
+      logging.ts        — LoggingMiddleware (request-level)
+      rate-limit.ts     — RateLimitMiddleware with pluggable store
+    tests/
+  logging/
+    src/
+      logger.ts         — Logger class + ILogger interface
+      provider.ts       — LoggingModule, LoggerToken, RequestLoggerToken
+      transports/
+        console.ts      — ConsoleTransport
+        file.ts         — FileTransport (node:fs)
+        bun-file.ts     — BunFileTransport (Worker + node:fs)
+        bun-worker.ts   — BunWorkerTransport (Worker → stdout)
+    tests/
 Roadmaps/
-  phase-1-core-stability.md     — COMPLETE
+  phase-1-core-stability.md
   phase-2-developer-experience.md
   phase-3-built-in-middleware.md
   phase-4-first-party-modules.md

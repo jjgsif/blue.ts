@@ -11,9 +11,7 @@ class ServiceA { value = 'a'; }
 class ServiceB { value = 'b'; }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
-
 describe('Container', () => {
-
   describe('get() — unregistered', () => {
     it('throws for an unknown class identifier', async () => {
       const c = makeContainer();

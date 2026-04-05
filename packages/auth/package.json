@@ -1,0 +1,16 @@
+{
+  "name": "@blue.ts/auth",
+  "version": "0.1.0",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "dependencies": {
+    "@blue.ts/core": "workspace:*",
+    "jose": "6.2.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

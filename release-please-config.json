@@ -5,6 +5,21 @@
       "release-type": "node",
       "package-name": "@blue.ts/core",
       "changelog-path": "CHANGELOG.md"
+    },
+    "packages/auth": {
+      "release-type": "node",
+      "package-name": "@blue.ts/auth",
+      "changelog-path": "CHANGELOG.md"
+    },
+    "packages/logging": {
+      "release-type": "node",
+      "package-name": "@blue.ts/logging",
+      "changelog-path": "CHANGELOG.md"
+    },
+    "packages/middleware": {
+      "release-type": "node",
+      "package-name": "@blue.ts/middleware",
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
