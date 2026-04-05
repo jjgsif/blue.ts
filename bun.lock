@@ -11,6 +11,19 @@
         "typescript": "^5",
       },
     },
+    "packages/auth": {
+      "name": "@blue.ts/auth",
+      "dependencies": {
+        "@blue.ts/core": "workspace:*",
+        "jose": "6.2.2",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
     "packages/core": {
       "name": "@blue.ts/core",
       "version": "0.0.0",
@@ -20,6 +33,20 @@
       "devDependencies": {
         "@types/bun": "latest",
         "@types/deno": "^2.5.0",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
+    "packages/example": {
+      "name": "@blue.ts/example",
+      "dependencies": {
+        "@blue.ts/auth": "workspace:*",
+        "@blue.ts/core": "workspace:*",
+        "jose": "6.2.2",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
       },
       "peerDependencies": {
         "typescript": "^5",
@@ -57,7 +84,11 @@
 
     "@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@7.28.5", "", {}, "sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q=="],
 
+    "@blue.ts/auth": ["@blue.ts/auth@workspace:packages/auth"],
+
     "@blue.ts/core": ["@blue.ts/core@workspace:packages/core"],
+
+    "@blue.ts/example": ["@blue.ts/example@workspace:packages/example"],
 
     "@blue.ts/logging": ["@blue.ts/logging@workspace:packages/logging"],
 
@@ -178,6 +209,8 @@
     "is-plain-obj": ["is-plain-obj@4.1.0", "", {}, "sha512-+Pgi+vMuUNkJyExiMBt5IlFoMyKnr5zhJ4Uspz58WOhBF5QoIZkFyNHIbBAtHwzVAgk5RtndVNsDRN61/mmDqg=="],
 
     "jiti": ["jiti@2.6.1", "", { "bin": { "jiti": "lib/jiti-cli.mjs" } }, "sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ=="],
+
+    "jose": ["jose@6.2.2", "", {}, "sha512-d7kPDd34KO/YnzaDOlikGpOurfF0ByC2sEV4cANCtdqLlTfBlw2p14O/5d/zv40gJPbIQxfES3nSx1/oYNyuZQ=="],
 
     "js-tokens": ["js-tokens@4.0.0", "", {}, "sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ=="],
 
