@@ -30,7 +30,7 @@
     "@types/bun": "latest"
   },
   "dependencies": {
-    "@blue.ts/core": "workspace:*",
+    "@blue.ts/core": "~0.2.0",
     "jose": "6.2.2"
   },
   "peerDependencies": {
