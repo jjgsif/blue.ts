@@ -1,11 +1,12 @@
 import {describe, it, expect, beforeEach} from 'bun:test';
-import {Logger} from '../src/logger.ts';
+import {Logger, type LoggerOptions} from '../src/logger.ts';
 import {LOG_LEVEL_VALUES} from '../src/types.ts';
 import {MemoryTransport} from './helpers.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeLogger(opts: { level?: Parameters<typeof Logger>[0]['level']; fields?: Record<string, unknown> } = {}) {
+// @ts-ignore
+function makeLogger(opts: { level?: LoggerOptions['level']; fields?: Record<string, unknown> } = {}) {
     const transport = new MemoryTransport();
     const logger = new Logger({transports: [transport], ...opts});
     return {logger, transport};

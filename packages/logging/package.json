@@ -3,7 +3,17 @@
   "version": "0.1.0",
   "module": "index.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
+    "build:types": "tsc -p tsconfig.build.json",
+    "build:js": "bun build ./index.ts --outdir ./dist --target node --format esm",
+    "build": "bun run build:types && bun run build:js",
     "test": "bun test"
   },
   "dependencies": {
@@ -14,5 +24,6 @@
   },
   "peerDependencies": {
     "typescript": "^5"
-  }
+  },
+  "license": "MIT"
 }

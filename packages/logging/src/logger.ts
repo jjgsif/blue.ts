@@ -38,8 +38,8 @@ export class Logger implements ILogger {
         this.transports = options.transports;
         this.minLevel = options.level ?? 'info';
         this.fields = options.fields ?? {};
-        this.pid = process.pid;
-        this.host = hostname();
+        this.pid = typeof process !== 'undefined' ? process.pid : 0;
+        this.host = (() => { try { return hostname(); } catch { return 'unknown'; } })();
     }
 
     // ── write ─────────────────────────────────────────────────────────────────

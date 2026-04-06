@@ -3,7 +3,7 @@ import type {Adapter, ServeOptions} from '../types.ts';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const runtime: any = globalThis;
 
-export class Deno implements Adapter {
+export class DenoAdapter implements Adapter {
     serve(handler: (req: Request) => Promise<Response>, options: ServeOptions): unknown {
         const port = options.port ?? 3000;
         const hostname = options.hostname ?? '0.0.0.0';
