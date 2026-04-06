@@ -20,6 +20,11 @@
       "release-type": "node",
       "package-name": "@blue.ts/middleware",
       "changelog-path": "CHANGELOG.md"
+    },
+    "packages/create": {
+      "release-type": "node",
+      "package-name": "@blue.ts/create",
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
