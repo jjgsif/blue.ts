@@ -1,0 +1,19 @@
+# Changelog
+
+## [0.2.0](https://github.com/jjgsif/blue.ts/compare/@blue.ts/auth-v0.1.0...@blue.ts/auth-v0.2.0) (2026-04-06)
+
+
+### Features
+
+* **auth:** added new auth strategies and updates to TS configs ([ecf1c64](https://github.com/jjgsif/blue.ts/commit/ecf1c646b0fab1fbed28c38839071720c718b13d))
+* **auth:** added new auth strategies and updates to TS configs and pipelines ([97fdf10](https://github.com/jjgsif/blue.ts/commit/97fdf1004e1f06ba15965c6115b6eb60bded3175))
+* **middleware:** Logging, Auth, and misc Middleware ([995fe39](https://github.com/jjgsif/blue.ts/commit/995fe3915e31d5b4540e2b014bdb3357e666eedd))
+
+
+### Bug Fixes
+
+* **pipelines:** updated package.json for pipelines ([03d7755](https://github.com/jjgsif/blue.ts/commit/03d7755ea5289373c4dc5b83dce88e4a687a2f2c))
+* **pipelines:** updated package.json for pipelines ([03d7755](https://github.com/jjgsif/blue.ts/commit/03d7755ea5289373c4dc5b83dce88e4a687a2f2c))
+* **pipelines:** updated package.json for pipelines ([598e28e](https://github.com/jjgsif/blue.ts/commit/598e28e416a7a322158b2dfa3af249d4a5b0cf22))
+* **pipelines:** updated package.json for pipelines - types ([4b1271a](https://github.com/jjgsif/blue.ts/commit/4b1271a300c124c3ff6fc1a745ea6b697d93b3e6))
+* **release-checks:** updated release-please files and package.jsons ([1097ad2](https://github.com/jjgsif/blue.ts/commit/1097ad28d0a0899e442c32af9fd2d60c4d732c1e))
