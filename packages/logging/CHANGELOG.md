@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.1](https://github.com/jjgsif/blue.ts/compare/@blue.ts/logging-v0.2.0...@blue.ts/logging-v0.2.1) (2026-04-06)
+
+
+### Bug Fixes
+
+* **git:** add git links and readme ([cc1bf66](https://github.com/jjgsif/blue.ts/commit/cc1bf66f3ccb39a5bbeb83e0f661b9899ed71437))
+* **git:** add git links and readme ([cc1bf66](https://github.com/jjgsif/blue.ts/commit/cc1bf66f3ccb39a5bbeb83e0f661b9899ed71437))
+* **git:** add git references and readme for create ([8430aea](https://github.com/jjgsif/blue.ts/commit/8430aeaa61f442fc8df2a52cbff74d941c564c34))
+* **git:** merge from develop - add git links and readme ([0889a86](https://github.com/jjgsif/blue.ts/commit/0889a86004b8b15ef3ca065541905d30c627ef7f))
+
 ## [0.2.0](https://github.com/jjgsif/blue.ts/compare/@blue.ts/logging-v0.1.0...@blue.ts/logging-v0.2.0) (2026-04-06)
 
 
