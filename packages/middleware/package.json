@@ -1,6 +1,6 @@
 {
   "name": "@blue.ts/middleware",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "module": "index.ts",
   "type": "module",
   "exports": {
@@ -35,5 +35,12 @@
   "peerDependencies": {
     "typescript": "^5"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jjgsif/blue.ts.git",
+    "directory": "packages/middleware"
+  },
+  "homepage": "https://github.com/jjgsif/blue.ts",
+  "bugs": "https://github.com/jjgsif/blue.ts/issues"
 }
