@@ -53,6 +53,14 @@ export class App {
 
     use(...middleware: Middleware[]): this {
         this.middleware.push(...middleware);
+        for (const middlewareConstructor of middleware) {
+            if (!this.container.hasRegistration(middlewareConstructor)) {
+                this.container.register(middlewareConstructor, {
+                    factory: () => new middlewareConstructor(),
+                    lifetime: 'singleton'
+                });
+            }
+        }
         return this;
     }
 

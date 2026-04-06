@@ -5,6 +5,8 @@
     "packages/*"
   ],
   "scripts": {
+    "build": "bun run --filter '@blue.ts/core' build && bun run --filter '@blue.ts/auth' build && bun run --filter '@blue.ts/logging' build && bun run --filter '@blue.ts/middleware' build && bun run --filter '@blue.ts/create' build",
+    "build:types": "bun run --filter '@blue.ts/core' build:types && bun run --filter '@blue.ts/auth' build:types && bun run --filter '@blue.ts/logging' build:types && bun run --filter '@blue.ts/middleware' build:types",
     "test": "bun test --recursive",
     "prepare": "husky"
   },

@@ -1,0 +1,22 @@
+{
+  "name": "@blue.ts/create",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "create-blue": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.9.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "license": "MIT"
+}

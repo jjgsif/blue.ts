@@ -8,7 +8,7 @@ export { Router } from './src/router.ts';
 
 // Adapters
 export { BunAdapter } from './src/adapters/bun.ts';
-export { Deno } from './src/adapters/deno.ts';
+export { DenoAdapter } from './src/adapters/deno.ts';
 export { NodeAdapter } from './src/adapters/node.ts';
 
 export { ConfigProvider } from "./src/providers.ts";

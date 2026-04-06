@@ -5,6 +5,7 @@ export { SessionAdapter } from './src/adapters/SessionAdapter.ts';
 export { APIKeyAdapter } from './src/adapters/APIKeyAdapter.ts';
 export { BasicAuthAdapter } from './src/adapters/BasicAuthAdapter.ts';
 export { MemorySessionStore } from './src/stores/MemorySessionStore.ts';
+export { DenoKVSessionStore } from './src/stores/DenoKVSessionStore.ts';
 export { createAuthMiddleware } from './src/middleware/AuthMiddleware.ts';
 export { requireRole } from './src/middleware/RequireRole.ts';
 export { getAuthUser, setAuthUser } from './src/auth-store.ts';

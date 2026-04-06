@@ -24,4 +24,12 @@ jobs:
         run: bun test --recursive
 
       - name: Type-check
-        run: bunx tsc -p packages/core/tsconfig.json --noEmit
+        run: |
+          bunx tsc -p packages/core/tsconfig.json --noEmit
+          bunx tsc -p packages/auth/tsconfig.json --noEmit
+          bunx tsc -p packages/logging/tsconfig.json --noEmit
+          bunx tsc -p packages/middleware/tsconfig.json --noEmit
+          bunx tsc -p packages/create/tsconfig.json --noEmit
+
+      - name: Build
+        run: bun run build
