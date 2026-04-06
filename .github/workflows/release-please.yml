@@ -12,7 +12,11 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     outputs:
-      releases_created: ${{ steps.release.outputs.releases_created }}
+      core_released:       ${{ steps.release.outputs['packages/core--release_created'] }}
+      auth_released:       ${{ steps.release.outputs['packages/auth--release_created'] }}
+      logging_released:    ${{ steps.release.outputs['packages/logging--release_created'] }}
+      middleware_released: ${{ steps.release.outputs['packages/middleware--release_created'] }}
+      create_released:     ${{ steps.release.outputs['packages/create--release_created'] }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -22,7 +26,12 @@ jobs:
 
   publish:
     needs: release-please
-    if: ${{ needs.release-please.outputs.releases_created }}
+    if: |
+      needs.release-please.outputs.core_released       == 'true' ||
+      needs.release-please.outputs.auth_released       == 'true' ||
+      needs.release-please.outputs.logging_released    == 'true' ||
+      needs.release-please.outputs.middleware_released == 'true' ||
+      needs.release-please.outputs.create_released     == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,30 +52,35 @@ jobs:
         run: bun run build
 
       - name: Publish @blue.ts/core
+        if: needs.release-please.outputs.core_released == 'true'
         run: npm publish --access public
         working-directory: packages/core
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @blue.ts/auth
+        if: needs.release-please.outputs.auth_released == 'true'
         run: npm publish --access public
         working-directory: packages/auth
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @blue.ts/logging
+        if: needs.release-please.outputs.logging_released == 'true'
         run: npm publish --access public
         working-directory: packages/logging
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @blue.ts/middleware
+        if: needs.release-please.outputs.middleware_released == 'true'
         run: npm publish --access public
         working-directory: packages/middleware
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @blue.ts/create
+        if: needs.release-please.outputs.create_released == 'true'
         run: npm publish --access public
         working-directory: packages/create
         env:
