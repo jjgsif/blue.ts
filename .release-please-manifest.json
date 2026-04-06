@@ -1,6 +1,7 @@
 {
-  "packages/core": "0.2.1",
-  "packages/auth": "0.2.1",
-  "packages/logging": "0.2.1",
-  "packages/middleware": "0.2.1"
+  "packages/core": "0.2.2",
+  "packages/auth": "0.2.2",
+  "packages/logging": "0.2.2",
+  "packages/middleware": "0.2.2",
+  "packages/create": "1.0.0"
 }

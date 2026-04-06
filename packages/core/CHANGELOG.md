@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2](https://github.com/jjgsif/blue.ts/compare/@blue.ts/core-v0.2.1...@blue.ts/core-v0.2.2) (2026-04-06)
+
+
+### Bug Fixes
+
+* **pipeline:** fixed release pipelines ([99b783b](https://github.com/jjgsif/blue.ts/commit/99b783bafe11ea96badb06cf488f4938f99b9111))
+* **pipeline:** fixed release pipelines ([99b783b](https://github.com/jjgsif/blue.ts/commit/99b783bafe11ea96badb06cf488f4938f99b9111))
+
 ## [0.2.1](https://github.com/jjgsif/blue.ts/compare/@blue.ts/core-v0.2.0...@blue.ts/core-v0.2.1) (2026-04-06)
 
 
