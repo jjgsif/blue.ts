@@ -25,6 +25,11 @@
       "release-type": "node",
       "package-name": "@blue.ts/create",
       "changelog-path": "CHANGELOG.md"
+    },
+    "packages/http": {
+      "release-type": "node",
+      "package-name": "@blue.ts/http",
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
