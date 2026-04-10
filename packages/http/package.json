@@ -1,0 +1,46 @@
+{
+  "name": "@blue.ts/http",
+  "version": "0.1.0",
+  "module": "index.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "bun": "./index.ts",
+      "types": "./index.ts",
+      "import": "./index.ts",
+      "default": "./index.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "build:types": "tsc -p tsconfig.build.json",
+    "build:js": "bun build ./index.ts --outdir ./dist --target node --format esm",
+    "build": "bun run build:types && bun run build:js",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jjgsif/blue.ts.git",
+    "directory": "packages/http"
+  },
+  "homepage": "https://github.com/jjgsif/blue.ts",
+  "bugs": "https://github.com/jjgsif/blue.ts/issues",
+  "dependencies": {
+    "@types/node": "^25.5.2"
+  }
+}
