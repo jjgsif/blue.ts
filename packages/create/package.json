@@ -1,6 +1,6 @@
 {
   "name": "@blue.ts/create",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "type": "module",
   "bin": {
     "create-blue": "./dist/index.js"
