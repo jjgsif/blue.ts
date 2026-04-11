@@ -5,5 +5,5 @@
   "packages/middleware": "0.2.2",
   "packages/create": "0.2.0",
   "packages/http": "0.2.0",
-  "packages/di": "0.1.0"
+  "packages/di": "0.2.0"
 }
