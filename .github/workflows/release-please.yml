@@ -18,6 +18,7 @@ jobs:
       middleware_released: ${{ steps.release.outputs['packages/middleware--release_created'] }}
       create_released:     ${{ steps.release.outputs['packages/create--release_created'] }}
       http_released:       ${{ steps.release.outputs['packages/http--release_created'] }}
+      di_released:         ${{ steps.release.outputs['packages/di--release_created'] }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -33,7 +34,8 @@ jobs:
       needs.release-please.outputs.logging_released    == 'true' ||
       needs.release-please.outputs.middleware_released == 'true' ||
       needs.release-please.outputs.create_released     == 'true' ||
-      needs.release-please.outputs.http_released       == 'true'
+      needs.release-please.outputs.http_released       == 'true' ||
+      needs.release-please.outputs.di_released         == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,5 +94,12 @@ jobs:
         if: needs.release-please.outputs.http_released == 'true'
         run: npm publish --access public
         working-directory: packages/http
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @blue.ts/di
+        if: needs.release-please.outputs.di_released == 'true'
+        run: npm publish --access public
+        working-directory: packages/di
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
