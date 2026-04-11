@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.3](https://github.com/jjgsif/blue.ts/compare/@blue.ts/logging-v0.2.2...@blue.ts/logging-v0.2.3) (2026-04-11)
+
+
+### Bug Fixes
+
+* **git:** minor npm fixes ([dfa8e5e](https://github.com/jjgsif/blue.ts/commit/dfa8e5e713aef05d9fe8e1d3c45e900c494fcd57))
+* **git:** minor npm fixes ([dfa8e5e](https://github.com/jjgsif/blue.ts/commit/dfa8e5e713aef05d9fe8e1d3c45e900c494fcd57))
+* **git:** minor npm fixes ([3e93ac0](https://github.com/jjgsif/blue.ts/commit/3e93ac08ef51e5dc75e88d8fd959b1f2c08aec2f))
+
 ## [0.2.2](https://github.com/jjgsif/blue.ts/compare/@blue.ts/logging-v0.2.1...@blue.ts/logging-v0.2.2) (2026-04-10)
 
 
