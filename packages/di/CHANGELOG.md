@@ -6,5 +6,3 @@
 ### Features
 
 * **di:** created di package ([582ed53](https://github.com/jjgsif/blue.ts/commit/582ed537b7920eb93f5057f2cada216a53b16871))
-* **di:** created di package ([582ed53](https://github.com/jjgsif/blue.ts/commit/582ed537b7920eb93f5057f2cada216a53b16871))
-* **di:** created di package ([50ca253](https://github.com/jjgsif/blue.ts/commit/50ca25315b4864b092c415db23e626ec816cd339))
